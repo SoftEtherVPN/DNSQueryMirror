@@ -15,10 +15,12 @@ struct EM_CONFIG
 	char OutputMac[6];
 	UCHAR Padding[2];
 	IP OutputArpSrc;
+	IP OutputGwIp;
+	UINT OutputUdpSrcPort;
 	UINT NumTargetIp;
 	IP TargetIpList[EM_MAX_TARGET_IP];
-	UCHAR TargetMacList[EM_MAX_TARGET_IP][6];
-	UINT64 TargetMacLastSeen[EM_MAX_TARGET_IP];
+	UCHAR OutputGwMac[6];
+	UINT64 OutputGwMacLastSeen;
 	UINT ArpInterval;
 	UINT ArpTimeout;
 };

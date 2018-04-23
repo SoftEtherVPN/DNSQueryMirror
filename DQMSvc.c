@@ -89,16 +89,41 @@ void EmRecvThread(THREAD *thread, void *param)
 
 						if (pkt != NULL)
 						{
-							// Insert to the queue.
-							if (q == NULL)
+							bool ok = false;
+
+							if (pkt->TypeL3 == L3_IPV4)
 							{
-								q = NewQueueFast();
+								if (pkt->TypeL4 == L4_UDP)
+								{
+									if (Endian16(pkt->L4.UDPHeader->DstPort) == 53)
+									{
+										if (Endian16(pkt->L4.UDPHeader->SrcPort) != m->Config->OutputUdpSrcPort)
+										{
+											ok = true;
+										}
+									}
+								}
 							}
 
-							//						Debug("%u\n", size);
-							if (q->num_item < EM_MAX_QUEUE_SIZE)
+							if (ok)
 							{
-								InsertQueue(q, pkt);
+								// Insert to the queue.
+								if (q == NULL)
+								{
+									q = NewQueueFast();
+								}
+
+								pkt->L4.UDPHeader->SrcPort = Endian16(m->Config->OutputUdpSrcPort);
+
+								//						Debug("%u\n", size);
+								if (q->num_item < EM_MAX_QUEUE_SIZE)
+								{
+									InsertQueue(q, pkt);
+								}
+								else
+								{
+									FreePacketWithData(pkt);
+								}
 							}
 							else
 							{
@@ -261,45 +286,40 @@ void EmSendThread(THREAD *thread, void *param)
 			if (now >= m->next_arp_send_tick || m->next_arp_send_tick == 0)
 			{
 				ARPV4_HEADER arp;
-				UINT i;
+				UCHAR *buf;
+				MAC_HEADER *mac_header;
+				IP target_ip;
 
-				for (i = 0;i < m->Config->NumTargetIp;i++)
-				{
-					UCHAR *buf;
-					MAC_HEADER *mac_header;
-					IP target_ip;
-
-					Zero(&arp, sizeof(arp));
+				Zero(&arp, sizeof(arp));
 					
-					CopyIP(&target_ip, &m->Config->TargetIpList[i]);
+				CopyIP(&target_ip, &m->Config->OutputGwIp);
 
-					// Build an ARP header
-					arp.HardwareType = Endian16(ARP_HARDWARE_TYPE_ETHERNET);
-					arp.ProtocolType = Endian16(MAC_PROTO_IPV4);
-					arp.HardwareSize = 6;
-					arp.ProtocolSize = 4;
-					arp.Operation = Endian16(ARP_OPERATION_REQUEST);
-					Copy(arp.SrcAddress, m->Config->OutputMac, 6);
-					arp.SrcIP = IPToUINT(&m->Config->OutputArpSrc);
-					Zero(&arp.TargetAddress, 6);
-					arp.TargetIP = IPToUINT(&target_ip);
+				// Build an ARP header
+				arp.HardwareType = Endian16(ARP_HARDWARE_TYPE_ETHERNET);
+				arp.ProtocolType = Endian16(MAC_PROTO_IPV4);
+				arp.HardwareSize = 6;
+				arp.ProtocolSize = 4;
+				arp.Operation = Endian16(ARP_OPERATION_REQUEST);
+				Copy(arp.SrcAddress, m->Config->OutputMac, 6);
+				arp.SrcIP = IPToUINT(&m->Config->OutputArpSrc);
+				Zero(&arp.TargetAddress, 6);
+				arp.TargetIP = IPToUINT(&target_ip);
 
-					// Buffer creation
-					buf = Malloc(MAC_HEADER_SIZE + sizeof(arp));
+				// Buffer creation
+				buf = Malloc(MAC_HEADER_SIZE + sizeof(arp));
 
-					// MAC header
-					mac_header = (MAC_HEADER *)&buf[0];
-					Copy(mac_header->DestAddress, broadcast, 6);
-					Copy(mac_header->SrcAddress, m->Config->OutputMac, 6);
-					mac_header->Protocol = Endian16(MAC_PROTO_ARPV4);
+				// MAC header
+				mac_header = (MAC_HEADER *)&buf[0];
+				Copy(mac_header->DestAddress, broadcast, 6);
+				Copy(mac_header->SrcAddress, m->Config->OutputMac, 6);
+				mac_header->Protocol = Endian16(MAC_PROTO_ARPV4);
 
-					// Copy data
-					Copy(&buf[sizeof(MAC_HEADER)], &arp, sizeof(arp));
+				// Copy data
+				Copy(&buf[sizeof(MAC_HEADER)], &arp, sizeof(arp));
 
-					EthPutPacket(eth, Clone(buf, MAC_HEADER_SIZE + sizeof(arp)), MAC_HEADER_SIZE + sizeof(arp));
+				EthPutPacket(eth, Clone(buf, MAC_HEADER_SIZE + sizeof(arp)), MAC_HEADER_SIZE + sizeof(arp));
 
-					Free(buf);
-				}
+				Free(buf);
 
 				m->next_arp_send_tick = now + (UINT64)m->Config->ArpInterval;
 			}
@@ -316,19 +336,37 @@ void EmSendThread(THREAD *thread, void *param)
 				{
 					UINT j;
 
-					for (j = 0;j < m->Config->NumTargetIp;j++)
+					if (IsZero(m->Config->OutputGwMac, 6) == false &&
+						now <= (m->Config->OutputGwMacLastSeen + (UINT64)m->Config->ArpTimeout))
 					{
-						if (IsZero(m->Config->TargetMacList[j], 6) == false &&
-							now <= (m->Config->TargetMacLastSeen[j] + (UINT64)m->Config->ArpTimeout))
+						for (j = 0;j < m->Config->NumTargetIp;j++)
 						{
 							UCHAR *data = Clone(pkt->PacketData, MAX(pkt->PacketSize, 14));
 							UINT size = pkt->PacketSize;
+							IPV4_HEADER *ipv4 = (IPV4_HEADER *)(data + 14);
+							PKT *pkt2 = ParsePacket(data, size);
 
-							Copy(data, m->Config->TargetMacList[j], 6);
+							ipv4->DstIP = IPToUINT(&m->Config->TargetIpList[j]);
+
+							Copy(data, m->Config->OutputGwMac, 6);
 							Copy(data + 6, m->Config->OutputMac, 6);
+
+							if (pkt2->TypeL3 == L3_IPV4)
+							{
+								if (pkt2->TypeL4 == L4_UDP)
+								{
+									pkt2->L3.IPv4Header->Checksum = 0;
+									pkt2->L4.UDPHeader->Checksum = 0;
+								}
+							}
+
+							CorrectChecksum(pkt2);
 
 							packet_array[i] = data;
 							packet_sizes[i] = size;
+
+							FreePacket(pkt2);
+
 							i++;
 						}
 					}
@@ -392,15 +430,10 @@ void EmSendThread(THREAD *thread, void *param)
 									IsZero(&rp->L3.ARPv4Header->SrcAddress, 6) == false &&
 									IsMacBroadcast(rp->L3.ARPv4Header->SrcAddress) == false)
 								{
-									UINT i;
-
-									for (i = 0;i < m->Config->NumTargetIp;i++)
+									if (IPToUINT(&m->Config->OutputGwIp) == rp->L3.ARPv4Header->SrcIP)
 									{
-										if (IPToUINT(&m->Config->TargetIpList[i]) == rp->L3.ARPv4Header->SrcIP)
-										{
-											Copy(m->Config->TargetMacList[i], rp->L3.ARPv4Header->SrcAddress, 6);
-											m->Config->TargetMacLastSeen[i] = now;
-										}
+										Copy(m->Config->OutputGwMac, rp->L3.ARPv4Header->SrcAddress, 6);
+										m->Config->OutputGwMacLastSeen = now;
 									}
 								}
 
@@ -443,7 +476,9 @@ EM_CONFIG *EmLoadConfig(char *fn)
 	LIST *o;
 	char output_mac_str[64];
 	char output_arp_src_ip_str[64];
+	char output_gw_ip_str[64];
 	char output_target_ip_list_str[MAX_SIZE];
+	UINT outout_udp_src_port = 0;
 	bool ok = false;
 	if (fn == NULL)
 	{
@@ -458,6 +493,7 @@ EM_CONFIG *EmLoadConfig(char *fn)
 		IniGetStr(o, "OutputIf", c->OutputIf, sizeof(c->OutputIf)) == false ||
 		IniGetStr(o, "OutputMac", output_mac_str, sizeof(output_mac_str)) == false ||
 		IniGetStr(o, "OutputArpSrcIp", output_arp_src_ip_str, sizeof(output_arp_src_ip_str)) == false ||
+		IniGetStr(o, "OutputGwIp", output_gw_ip_str, sizeof(output_gw_ip_str)) == false ||
 		IniGetStr(o, "TargetIpList", output_target_ip_list_str, sizeof(output_target_ip_list_str)) == false)
 	{}
 	else
@@ -491,8 +527,15 @@ EM_CONFIG *EmLoadConfig(char *fn)
 			FreeToken(t);
 		}
 
+		c->OutputUdpSrcPort = (USHORT)IniIntValue(o, "OutputUdpSrcPort");
+		if (c->OutputUdpSrcPort == 0)
+		{
+			c->OutputUdpSrcPort = 65534;
+		}
+
 		if (StrToIP(&c->OutputArpSrc, output_arp_src_ip_str) &&
-			StrToMac(c->OutputMac, output_mac_str))
+			StrToMac(c->OutputMac, output_mac_str) &&
+			StrToIP(&c->OutputGwIp, output_gw_ip_str))
 		{
 			ok = true;
 		}
