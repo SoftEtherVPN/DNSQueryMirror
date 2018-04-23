@@ -28,7 +28,7 @@ OBJS=$(addprefix obj/obj/linux/,$(patsubst %.c,%.o,$(SRCS)))
 # Build Action
 default:	build
 
-build:	$(OBJECTS_SECLIB) bin/ethermirror
+build:	$(OBJECTS_SECLIB) bin/dnsquerymirror
 
 obj/obj/linux/seclib.o: seclib/seclib_src/seclib.c $(HEADERS_SECLIB)
 	@mkdir -p obj/obj/linux/
@@ -38,12 +38,12 @@ obj/obj/linux/seclib.o: seclib/seclib_src/seclib.c $(HEADERS_SECLIB)
 obj/obj/linux/%.o: %.c
 	$(CC) $(OPTIONS_COMPILE) -c $< -o $@
 
-bin/ethermirror: obj/obj/linux/seclib.o $(HEADERS_SECLIB) $(OBJECTS_SECLIB) $(OBJS)
-	$(CC) obj/obj/linux/seclib.o $(OBJS) $(OPTIONS_LINK) -o bin/ethermirror
+bin/dnsquerymirror: obj/obj/linux/seclib.o $(HEADERS_SECLIB) $(OBJECTS_SECLIB) $(OBJS)
+	$(CC) obj/obj/linux/seclib.o $(OBJS) $(OPTIONS_LINK) -o bin/dnsquerymirror
 
 clean:
 	-rm -f obj/obj/linux/*.o
-	-rm -f bin/ethermirror
+	-rm -f bin/dnsquerymirror
 
 help:
 	@echo "make [DEBUG=YES]"

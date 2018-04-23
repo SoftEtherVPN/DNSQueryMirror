@@ -1,6 +1,6 @@
 .vs/
 bin/*.exe
-bin/ethermirror
+bin/dnsquerymirror
 bin/em_log/
 obj/
 *.ilk

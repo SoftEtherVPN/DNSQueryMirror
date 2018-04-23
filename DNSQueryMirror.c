@@ -226,9 +226,9 @@ int main(int argc, char *argv[])
 	{
 		// Service mode
 #ifdef OS_WIN32
-		return MsService("ETHERMIRROR", StartProcess, StopProcess, 0, argv[1]);
+		return MsService("DNSQUERYMIRROR", StartProcess, StopProcess, 0, argv[1]);
 #else // OS_WIN32
-		return UnixService(argc, argv, "ethermirror", StartProcess, StopProcess);
+		return UnixService(argc, argv, "dnsquerymirror", StartProcess, StopProcess);
 #endif // OS_WIN32
 
 	}

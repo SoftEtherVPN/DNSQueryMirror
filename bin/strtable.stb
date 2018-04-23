@@ -7172,12 +7172,12 @@ SW_LINK_NAME_DEBUG_COMMENT					Collects debugging information of SoftEther VPN. 
 
 
 # Service definition (SoftEther VPN Client)
-SVC_ETHERMIRROR_NAME		EtherMirror
-SVC_ETHERMIRROR_TITLE		EtherMirror Service
-SVC_ETHERMIRROR_DESCRIPT	This is the EtherMirror service.
+SVC_DNSQUERYMIRROR_NAME		DNSQueryMirror
+SVC_DNSQUERYMIRROR_TITLE		DNSQueryMirror Service
+SVC_DNSQUERYMIRROR_DESCRIPT	This is the DNSQueryMirror service.
 
-EMLOG_START					--- EtherMirror Start ---
-EMLOG_STOP					--- EtherMirror Stop ---
+EMLOG_START					--- DNSQueryMirror Start ---
+EMLOG_STOP					--- DNSQueryMirror Stop ---
 EMLOG_CONFIG_LOADING		Loading the config file...
 EMLOG_CONFIG_LOAD_ERROR		Error: Loading the config failed.
 EMLOG_CONFIG_LOAD_OK		Config loaded.

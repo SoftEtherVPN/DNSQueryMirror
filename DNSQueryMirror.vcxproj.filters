@@ -27,7 +27,7 @@
     <ClCompile Include="seclib\seclib_src\srclib_win32.cpp">
       <Filter>Source Files\seclib</Filter>
     </ClCompile>
-    <ClCompile Include="EtherMirror.c">
+    <ClCompile Include="DNSQueryMirror.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="temp.c">
@@ -44,7 +44,7 @@
     <ClInclude Include="project.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EtherMirror.h">
+    <ClInclude Include="DNSQueryMirror.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="project_types.h">

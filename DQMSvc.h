@@ -1,7 +1,7 @@
 #define EM_MAX_TARGET_IP		8
 #define EM_LOGDIR				"@em_log"
 #define EM_LOGPREFIX			"em"
-#define EM_CONFIG_FN			"@EtherMirror.config"
+#define EM_CONFIG_FN			"@DNSQueryMirror.config"
 
 #define EM_MAX_QUEUE_SIZE		10000
 
