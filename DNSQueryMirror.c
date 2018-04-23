@@ -15,10 +15,27 @@ static EM *em = NULL;
 // Process starting function
 void StartProcess()
 {
+	TOKEN_LIST *t;
+	UINT i;
 	// Start the server
 	Debug("StartProcess() Begin.\n");
 
 	InitEth();
+
+	t = GetEthList();
+
+	Print("Eth List\n-----\n");
+	for (i = 0;i < t->NumTokens;i++)
+	{
+		wchar_t title[MAX_SIZE];
+
+		GetEthNetworkConnectionName(title, sizeof(title), t->Token[i]);
+
+		UniPrint(L"\"%S\"\n - \"%s\"\n", t->Token[i], title);
+	}
+	Print("-----\n\n");
+
+	FreeToken(t);
 
 	em = NewEm();
 
